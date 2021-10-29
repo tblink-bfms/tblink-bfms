@@ -11,6 +11,7 @@ from tblink_rpc.yaml_idl_parser import YamlIDLParser
 from distutils.extension import Extension
 import shutil
 from tblink_bfms.template_loader import TemplateLoader
+from tblink_bfms.generators.gen_rgy import GenRgy
 
 
 class BfmBuildExtCmd(build_ext):
@@ -20,6 +21,8 @@ class BfmBuildExtCmd(build_ext):
     
     def run(self):
         bfm_extensions = []
+        self.gen_i = None
+        self.idl = None
         
         print("BfmBuildExtCmd")
         print("  build_lib=%s" % self.build_lib)
@@ -58,9 +61,9 @@ class BfmBuildExtCmd(build_ext):
         
     def build_bfm_ext(self, ext : Extension, share_dir):
         parser = YamlIDLParser()
-        idl = None
+        self.idl = None
         with open(ext.name, "r") as fp:
-            idl = parser.parse(fp)
+            self.idl = parser.parse(fp)
 
         for src in ext.sources:
             self.process_files(
@@ -104,19 +107,37 @@ class BfmBuildExtCmd(build_ext):
         for file,gen in tmpl_e.module.tblink_generators.items():
             print("Generate for %s:%s" % (file, gen))
             dst_file = os.path.join(dst_dir, file)
+            gen_t = GenRgy.inst().find_gen(gen)
+            
+            if gen_t is None:
+                raise Exception("Generator type %s does not exist" % gen)
+            
+            self.gen_i = gen_t()
        
             content = tmpl_e.render()
+#            content = ""
                 
             with open(dst_file, "w") as fp:
                 fp.write(content)
+                
+            self.gen_i = None
             
     def get_template(self, path):
         tmpl_e = self.env.get_template(path)
-        tmpl_e.globals["tblink_bfm_driver"] = self.gen_tblink_bfm_driver
+        tmpl_e.globals["tblink_gen"] = self.gen_tblink_gen
         return tmpl_e
     
-    def gen_tblink_bfm_driver(self, iftype, is_mirror):
-        print("iftype=%s is_mirror=%s" % (iftype, str(is_mirror)))
-        return "TODO"
+    def gen_tblink_gen(self, iftype, is_mirror, kind=None, **kwargs):
+        if self.gen_i is not None:
+            print("iftype=%s is_mirror=%s" % (iftype, str(is_mirror)))
+
+            iftype_i = self.idl.find_iftype(iftype)
+
+            if iftype_i is None:
+                raise Exception("Failed to find interface type %s" % iftype)
+            
+            return self.gen_i.tblink_gen(iftype_i, is_mirror, kind, *kwargs)
+        else:
+            return ""
     
         
