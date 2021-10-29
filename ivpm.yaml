@@ -1,0 +1,15 @@
+
+package:
+   name: tblink-bfms
+   version: 0.0.1
+   
+   deps:
+   - name: vte
+     url: https://github.com/fvutils/vte.git
+   - name: tblink-rpc-core
+     url: https://github.com/tblink-rpc/tblink-rpc-core.git
+   
+   dev-deps:
+   - name: vte
+     url: https://github.com/fvutils/vte.git
+     
