@@ -22,7 +22,7 @@ class GenSystemVerilog(GenBase):
         out.println()
         out.println("function string inst_name();")
         out.inc_ind()
-        out.println("return m_inst_name")
+        out.println("return m_inst_name;")
         out.dec_ind()
         out.println("endfunction")
         out.println()
@@ -77,7 +77,7 @@ class GenSystemVerilog(GenBase):
                     p[0]))
                 out.write("%s);" % g_util.gen_mk_type("iftype_b", p[1]))
             
-            out.println("void'(iftype_b.add_method(mtb);")
+            out.println("void'(iftype_b.add_method(mtb));")
             out.println()
                 
         out.println()
@@ -113,16 +113,19 @@ class GenSystemVerilog(GenBase):
         out.dec_ind()
         out.println("endinterface")
         out.println()
+
+        out.println("%s_core u_core();" % g_util.to_id(iftype.name))
+        out.println()
         
         out.println("initial begin")
         out.inc_ind()
-        out.println("m_inst_name = $sformatf(\"%%m\");")
+        out.println("m_inst_name = $sformatf(\"%m\");")
         out.println("u_core.init(")
         out.inc_ind()
         out.println("m_inst_name,")
         out.println("u_core);")
-        out.println("tblink_rpc::tblink_rpc_start();")
         out.dec_ind()
+        out.println("tblink_rpc::tblink_rpc_start();")
         
         out.dec_ind()
         out.println("end")
