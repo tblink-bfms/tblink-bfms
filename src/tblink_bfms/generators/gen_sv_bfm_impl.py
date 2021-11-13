@@ -53,13 +53,15 @@ class GenSvBfmImpl(object):
         out.println("string inst_name,")
         out.println("vif_t vif);")
         out.dec_ind()
-        
+
         out.println("TbLink tblink = TbLink::inst();")
         out.println("IEndpoint ep;");
         out.println("IInterfaceType iftype;")
         out.println("SVInterfaceImplVif #(vif_t) ifimpl;")
         out.println()
+        out.println("$display(\"init: %s\", inst_name);")        
         out.println("ep = tblink.get_default_ep();")
+        out.println("$display(\"init: post-get-default\");")
         out.println()
         out.println("if (ep == null) begin")
         out.inc_ind()
@@ -73,6 +75,7 @@ class GenSvBfmImpl(object):
         out.println()
         
         out.println("ifimpl = new(vif);")
+        out.println("$display(\"init: define-interface-inst\");")
         out.println("ifinst = ep.defineInterfaceInst(")
         out.inc_ind()
         out.println("iftype,")
@@ -114,8 +117,15 @@ class GenSvBfmImpl(object):
         out.println("%s_core u_core();" % g_util.to_id(iftype.name))
         out.println()
         
+        # Generate call-out methods for the BFM implementation to call
+        for m in iftype.methods:
+            pass
+        
+        out.println()
+        
         out.println("initial begin")
         out.inc_ind()
+        out.println("$display(\"rv_bfm: %m\");")
         out.println("m_inst_name = $sformatf(\"%m\");")
         out.println("u_core.init(")
         out.inc_ind()

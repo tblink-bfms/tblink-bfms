@@ -19,7 +19,11 @@ class GenSystemVerilog(GenBase):
             "bfm" : GenSvBfmImpl().gen,
             "define_type": GenSv().gen_define_type,
             "method_t.decl" : GenSv().gen_method_t_decl,
-            "method_t.find" : GenSv().gen_method_t_find}
+            "method_t.find" : GenSv().gen_method_t_find,
+            "method_t.impl" : GenSv().gen_method_t_impl,
+            "invoke_nb" : GenSv().gen_invoke_nb,
+            "invoke_b" : GenSv().gen_invoke_b,
+            }
 
     def tblink_gen(self, iftype, is_mirror, kind=None, **kwargs):
         ret_s = StringIO()
@@ -30,6 +34,9 @@ class GenSystemVerilog(GenBase):
         
         if kind not in self.kind_m.keys():
             raise Exception("Kind %s not supported" % kind)
+        
+        if "ind" in kwargs.keys():
+            out.ind = kwargs["ind"]
 
         self.kind_m[kind](out, iftype, is_mirror, **kwargs)
 
