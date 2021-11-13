@@ -99,7 +99,7 @@ class BfmGenerator(object):
             if iftype_i is None:
                 raise Exception("Failed to find interface type %s" % iftype)
             
-            return self.gen_i.tblink_gen(iftype_i, is_mirror, kind, *kwargs)
+            return self.gen_i.tblink_gen(iftype_i, is_mirror, kind, **kwargs)
         else:
             return ""    
         

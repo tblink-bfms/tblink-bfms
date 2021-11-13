@@ -15,8 +15,8 @@ class GenRgy(object):
     def __init__(self):
         self.gen_m = {}
         
-        self.gen_m["tblink.bfm.sv"] = GenSystemVerilog
-        self.gen_m["tblink.bfm.vl"] = GenVerilog
+        self.gen_m["tblink.bfm_impl.sv"] = GenSystemVerilog
+        self.gen_m["tblink.bfm_impl.vl"] = GenVerilog
         pass
     
     def find_gen(self, gen_t):
