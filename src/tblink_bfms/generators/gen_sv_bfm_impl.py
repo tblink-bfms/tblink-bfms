@@ -22,7 +22,26 @@ class GenSvBfmImpl(object):
         out.dec_ind()
         out.println("endfunction")
         out.println()
+        
+        out.println("tblink_rpc::IInterfaceInst m_ifinst;")
+        
+        # Generate handles for import methods
+        for m in iftype.methods:
+            if not m.is_export and not is_mirror or m.is_export and is_mirror:
+                out.println("tblink_rpc::IMethodType m_%s;" % m.name)
+        out.println()
+        
+        # Generate import methods
+        for m in iftype.methods:
+            if not m.is_export and not is_mirror or m.is_export and is_mirror:
+                if m.is_blocking:
+                    GenSv().gen_method_t_impl_b(out, m, "m_ifinst", qtype=True, is_auto=True)
+                else:
+                    GenSv().gen_method_t_impl_nb(out, m, "m_ifinst", qtype=True, is_auto=True)
+                    
+        out.println()
 
+        # Generate type-definition method
         GenSv(is_automatic=True).gen_define_type(out, iftype, is_mirror)
         
         out.dec_ind()
@@ -44,6 +63,7 @@ class GenSvBfmImpl(object):
         out.inc_ind()
         out.println("import tblink_rpc::*;")
         out.println("IInterfaceInst ifinst;")
+        out.println("IInterfaceType iftype;")
         out.println()
         out.println("typedef virtual %s_core vif_t;" % g_util.to_id(iftype.name))
         out.println()
@@ -56,7 +76,6 @@ class GenSvBfmImpl(object):
 
         out.println("TbLink tblink = TbLink::inst();")
         out.println("IEndpoint ep;");
-        out.println("IInterfaceType iftype;")
         out.println("SVInterfaceImplVif #(vif_t) ifimpl;")
         out.println()
         out.println("$display(\"init: %s\", inst_name);")        
@@ -93,24 +112,62 @@ class GenSvBfmImpl(object):
         out.println()
         out.println("function automatic IParamVal invoke_nb(")
         out.inc_ind()
+        out.inc_ind()
         out.println("input IInterfaceInst         ifinst,")
         out.println("input IMethodType            method,")
         out.println("input IParamValVec           params);")
+        out.dec_ind()
+        out.println()
+        out.println("IParamVal retval;")
+        out.println()
+        out.println("case (method.id())")
+        out.inc_ind();
+        for i,m in enumerate(iftype.methods):
+            if not m.is_blocking and (is_mirror and not m.is_export or not is_mirror and m.is_export):
+                GenSv().gen_invoke_nb_case(out, i, m, "")
+        out.println("default: begin")
+        out.inc_ind()
+        out.println("$display(\"TbLink Fatal: Invalid method-id %0d to instance %m\", method.id());")
+        out.dec_ind()
+        out.println("end")
+        
+        out.dec_ind();
+        out.println("endcase")
+       
+
+        out.println("return retval;")
         out.dec_ind()
         out.println("endfunction")
         out.println()
         
         out.println("task automatic invoke_b(")
         out.inc_ind()
+        out.inc_ind()
         out.println("output IParamVal retval,")
         out.println("input IInterfaceInst ifinst,")
         out.println("input IMethodType method,")
         out.println("input IParamValVec params);")
         out.dec_ind()
+        
+        out.println("case (method.id())")
+        out.inc_ind();
+        for i,m in enumerate(iftype.methods):
+            if m.is_blocking and (is_mirror and not m.is_export or not is_mirror and m.is_export):
+                GenSv().gen_invoke_b_case(out, i, m, "")
+                pass
+        out.println("default: begin")
+        out.inc_ind()
+        out.println("$display(\"TbLink Fatal: Invalid method-id %0d to instance %m\", method.id());")
+        out.dec_ind()
+        out.println("end")
+        
+        out.dec_ind();
+        out.println("endcase")
+        
+        out.dec_ind()
         out.println("endtask")
         out.println()
         
-        out.dec_ind()
         out.println("endinterface")
         out.println()
 
@@ -132,6 +189,17 @@ class GenSvBfmImpl(object):
         out.println("m_inst_name,")
         out.println("u_core);")
         out.dec_ind()
+        out.println()
+        out.println("m_ifinst = u_core.ifinst;")
+        out.println()
+        
+        # Find the method handles
+        out.println("// Lookup method handles")
+        for m in iftype.methods:
+            if m.is_export == is_mirror:
+                out.println("m_%s = u_core.iftype.findMethod(\"%s\");" % (
+                    m.name, m.name))
+        
         out.println("tblink_rpc::tblink_rpc_start();")
         
         out.dec_ind()

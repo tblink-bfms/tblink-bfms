@@ -48,7 +48,7 @@ class GenSv(object):
                 out.write("%smtb.add_param(string'(\"%s\"), " %(
                     out.ind,
                     p[0]))
-                out.write("%s);" % g_util.gen_mk_type("iftype_b", p[1]))
+                out.write("%s);\n" % g_util.gen_mk_type("iftype_b", p[1]))
             
             out.println("void'(iftype_b.add_method(mtb));")
             out.println()
@@ -82,49 +82,106 @@ class GenSv(object):
     def gen_method_t_impl(self, out, iftype, is_mirror, **kwargs):
         """Generates method implementations"""
         for m in iftype.methods:
-            if m.is_blocking:
-                out.println("task %s(" % m.name)
-                if m.rtype is not None:
-                    # TODO: first parameter is return type
-                    pass
-            else:
-                out.write("%sfunction " % out.ind)
-                if m.rtype is None:
-                    out.write("void")
+            if not is_mirror and not m.is_export or is_mirror and m.is_export:
+                if m.is_blocking:
+                    self.gen_method_t_impl_b(out, m)
                 else:
-                    # TODO: non-void function
-                    pass
-                out.write(" %s(\n" % m.name)
-                
-            # Regular user parameters
-            out.inc_ind()
-            out.inc_ind()
-            for i,p in enumerate(m.params):
-                if i > 0:
-                    out.write(",\n%s" % out.ind)
-                out.write("%sinput " % out.ind)
-                self.gen_sv_typename(out, p[1])
-                out.write(" %s" % p[0])
-                pass
-            if len(m.params) > 0:
-                out.write(");\n")
-            else:
-                out.write("%s);\n" % out.ind)
-                
-            out.dec_ind()
-        
-            # Now, add in handling for different cases
-        
-            out.dec_ind()
-        
-            if m.is_blocking:
-                out.println("endtask")
-            else:
-                out.println("endfunction")
-                
-            out.println()
-        
+                    self.gen_method_t_impl_nb(out, m)
+    
+    def gen_method_t_impl_b(self, out, m, prefix="m_ifinst", qtype=False, auto=False):
+        out.println("task %s(" % m.name)
+        out.inc_ind()
+        out.inc_ind()
+
+        if m.rtype is not None:
+            # Return passed as the first parameter
+            out.write("%soutput %s rval" % (out.ind, self._type2str(m.rtype)))
+            
+        for i,p in enumerate(m.params):
+            if i > 0 or m.rtype is not None:
+                out.write(",\n%s" % out.ind)
+            out.write("%sinput " % out.ind)
+            self.gen_sv_typename(out, p[1])
+            out.write(" %s" % p[0])
+            
+        if len(m.params) > 0:
+            out.write(");\n")
+        else:
+            out.write("%s);\n" % out.ind)
+
+        out.dec_ind()
+        # TODO: internals
+        out.dec_ind()
+        out.println("endtask")
         pass
+    
+    def gen_method_t_impl_nb(self, out, m, prefix="m_ifinst", qtype=False, is_auto=False):
+        
+        if qtype:
+            tpref = "tblink_rpc::"
+        else:
+            tpref = ""
+        if is_auto:
+            auto = "automatic "
+        else:
+            auto = ""
+            
+        out.write("%sfunction %s" % (out.ind, auto))
+        if m.rtype is not None:
+            out.write("%s " % self._type2str())
+        else:
+            out.write("void ")
+        out.write("%s(\n" % m.name)
+
+        out.inc_ind()
+        out.inc_ind()
+            
+        for i,p in enumerate(m.params):
+            if i > 0 or m.rtype is not None:
+                out.write(",\n%s" % out.ind)
+            out.write("%sinput " % out.ind)
+            self.gen_sv_typename(out, p[1])
+            out.write(" %s" % p[0])
+            
+            
+        if len(m.params) > 0:
+            out.write(");\n")
+        else:
+            out.write("%s);\n" % out.ind)
+        out.dec_ind()
+            
+        if m.rtype is not None:
+            # Return passed as the first parameter
+            out.println("%s retval;" % self._type2tblinkstr(m.rtype, qtype))
+            out.println("%s rval;" % self._type2str(m.rtype))
+        out.println("%sIParamValVec params = m_ifinst.mkValVec();" % tpref)
+        
+        for i,p in enumerate(m.params):
+            out.println("params.push_back(%s);" % self._mktblink_val(p[1], p[0], "m_ifinst"))
+
+
+        out.write(out.ind)
+        if m.rtype is not None:
+            out.write("retval = ")
+        else:
+            out.write("void'(")
+            
+        out.write("%s.invoke_nb(\n" % prefix)
+        out.inc_ind()
+        out.println("m_%s," % m.name)
+        if m.rtype is not None:
+            out.println("params);")
+        else:
+            out.println("params));")
+        out.dec_ind()
+                
+        # TODO: internals
+        
+        if m.rtype is not None:
+            out.println("return rval;")
+        out.dec_ind()
+        out.println("endfunction")
+        pass    
     
     _int_type_m = {
         8: 'byte',
@@ -160,19 +217,40 @@ class GenSv(object):
         
         return ret
     
-    def _type2tblinkstr(self, type_s : TypeSpec):
+    def _type2tblinkstr(self, type_s : TypeSpec, qtype=False):
+        if qtype:
+            tpref = "tblink_rpc::"
+        else:
+            tpref = ""
         if type_s.kind == TypeKind.Int:
-            ret = "IParamValInt"
+            ret = "%sIParamValInt" % tpref
         elif type_s.kind == TypeKind.Bool:
-            ret = "IParamValBool"
+            ret = "%IParamValBool" % tpref
         elif type_s.kind == TypeKind.Str:
-            ret = "IParamValStr"
+            ret = "%IParamValStr" % tpref
         else:
             raise Exception("Unsupported typespec %s" % str(type_s.kind))
             pass
         
         return ret
     
+    def _mktblink_val(self, type_s : TypeSpec, name, hndl):
+        ret = hndl + "."
+        
+        if type_s.kind == TypeKind.Int:
+            if type_s.is_signed:
+                ret += "mkValIntS(%s,%d)" % (name, type_s.width)
+            else:
+                ret += "mkValIntU(%s,%d)" % (name, type_s.width)
+        elif type_s.kind == TypeKind.Bool:
+            ret += "mkValBool(%s)" % name
+        elif type_s.kind == TypeKind.Str:
+            ret += "mkValStr(%s)" % name
+        else:
+            raise Exception("Unhandled type: %s" % str(type_s))
+        
+        return ret
+
 
     def gen_invoke_nb(self, out, iftype, is_mirror, **kwargs):
         out.println("virtual function IParamVal invoke_nb(")
@@ -189,45 +267,14 @@ class GenSv(object):
         out.inc_ind()
         
         for i,m in enumerate(iftype.methods):
-            out.println("%d: begin // %s" % (i, m.name))
-            out.inc_ind()
-            if m.rtype is not None:
-                out.println("%s rval;" % self._type2str(m.rtype))
+            if not m.is_blocking and (is_mirror and not m.is_export or not is_mirror and m.is_export):
+                self.gen_invoke_nb_case(out, i, m, "m_impl.")
 
-            for p in m.params:
-                out.println("%s %s;" % (self._type2str(p[1]), p[0]))
-                out.println("%s %s_p;" % (self._type2tblinkstr(p[1]), p[0]))
-            for i,p in enumerate(m.params):
-                out.println("$cast(%s_p, params.at(%d));" % (p[0], i))
-                if p[1].kind == TypeKind.Int:
-                    if p[1].is_signed:
-                        out.println("%s = %s_p.val_s();" % (p[0], p[0]))
-                    else:
-                        out.println("%s = %s_p.val_u();" % (p[0], p[0]))
-                else:
-                    out.println("%s = %s_p.val();" % (p[0], p[0]))
-
-            out.write("%s" % out.ind)                    
-            if m.rtype is not None:
-                out.write("rval = ")
-            out.write("m_impl.%s(\n" % m.name)
-            out.inc_ind()
-            out.write("%s" % out.ind)
-            for i,p in enumerate(m.params):
-                if i > 0:
-                    out.write(",\n%s" % out.ind)
-                out.write("%s" % p[0])
-                
-            if len(m.params) > 0:
-                out.write(");\n")
-            else:
-                out.println(");")
-                
-            out.dec_ind()
-                
-            out.dec_ind()
-            out.println("end")
-
+        out.println("default: begin")
+        out.inc_ind()
+        out.println("$display(\"TbLink Error: unhandled invoke id %0d\", method.id());")
+        out.dec_ind()
+        out.println("end")
         out.dec_ind()
         out.println("endcase")
         out.println()
@@ -251,17 +298,103 @@ class GenSv(object):
         out.println("case (method.id())")
         out.inc_ind()
         for i,m in enumerate(iftype.methods):
-            out.println("%d: begin // %s" % (i, m.name))
-            out.inc_ind()
-            out.dec_ind()
-            out.println("end")
+            if m.is_blocking and (is_mirror and not m.is_export or not is_mirror and m.is_export):
+                self.gen_invoke_b_case(out, i, m, "m_impl.")
 
+        out.println("default: begin")
+        out.inc_ind()
+        out.println("$display(\"TbLink Error: unhandled invoke id %0d\", method.id());")
+        out.dec_ind()
+        out.println("end")
         out.dec_ind()
         out.println("endcase")
         out.println()
         out.dec_ind()
         out.println("endtask")           
         pass
+    
+    
+    def gen_invoke_b_case(self, out, i, m, invoke_prefix):
+        out.println("%d: begin // %s" % (i, m.name))
+        out.inc_ind()
+        if m.rtype is not None:
+            out.println("%s rval;" % self._type2str(m.rtype))
+
+        for p in m.params:
+            out.println("%s %s;" % (self._type2str(p[1]), p[0]))
+            out.println("%s %s_p;" % (self._type2tblinkstr(p[1]), p[0]))
+        for i,p in enumerate(m.params):
+            out.println("$cast(%s_p, params.at(%d));" % (p[0], i))
+            if p[1].kind == TypeKind.Int:
+                if p[1].is_signed:
+                    out.println("%s = %s_p.val_s();" % (p[0], p[0]))
+                else:
+                    out.println("%s = %s_p.val_u();" % (p[0], p[0]))
+            else:
+                out.println("%s = %s_p.val();" % (p[0], p[0]))
+
+        out.write("%s" % out.ind)                    
+        out.write("%s%s%s(\n" % (out.ind, invoke_prefix, m.name))
+        out.inc_ind()
+        out.write("%s" % out.ind)
+        if m.rtype is not None:
+            out.write("rval")
+        for i,p in enumerate(m.params):
+            if i > 0 or m.rtype is not None:
+                out.write(",\n%s" % out.ind)
+            out.write("%s" % p[0])
+            
+        if len(m.params) > 0:
+            out.write(");\n")
+        else:
+            out.println(");")
+            
+        out.dec_ind()
+            
+        out.dec_ind()
+        out.println("end")
+        
+    def gen_invoke_nb_case(self, out, i, m, invoke_prefix):
+        out.println("%d: begin // %s" % (i, m.name))
+        out.inc_ind()
+        if m.rtype is not None:
+            out.println("%s rval;" % self._type2str(m.rtype))
+
+        for p in m.params:
+            out.println("%s %s;" % (self._type2str(p[1]), p[0]))
+            out.println("%s %s_p;" % (self._type2tblinkstr(p[1]), p[0]))
+        for i,p in enumerate(m.params):
+            out.println("$cast(%s_p, params.at(%d));" % (p[0], i))
+            if p[1].kind == TypeKind.Int:
+                if p[1].is_signed:
+                    out.println("%s = %s_p.val_s();" % (p[0], p[0]))
+                else:
+                    out.println("%s = %s_p.val_u();" % (p[0], p[0]))
+            else:
+                out.println("%s = %s_p.val();" % (p[0], p[0]))
+
+        out.write("%s" % out.ind)                    
+        if m.rtype is not None:
+            out.write("rval = ")
+        out.write("%s%s(\n" % (invoke_prefix, m.name))
+        out.inc_ind()
+        out.write("%s" % out.ind)
+        for i,p in enumerate(m.params):
+            if i > 0:
+                out.write(",\n%s" % out.ind)
+            out.write("%s" % p[0])
+            
+        if len(m.params) > 0:
+            out.write(");\n")
+        else:
+            out.println(");")
+            
+        out.dec_ind()
+            
+        out.dec_ind()
+        out.println("end")        
+        
+    
 
 
 
