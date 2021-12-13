@@ -21,6 +21,7 @@ class GenSv(object):
             
         out.inc_ind()
         out.println("tblink_rpc::IInterfaceType iftype;")
+        out.println("tblink_rpc::IMethodType method;")
         out.println()
         out.println("iftype = ep.findInterfaceType(string'(\"%s\"));" % iftype.name)
         out.println()
@@ -50,7 +51,7 @@ class GenSv(object):
                     p[0]))
                 out.write("%s);\n" % g_util.gen_mk_type("iftype_b", p[1]))
             
-            out.println("void'(iftype_b.add_method(mtb));")
+            out.println("method = iftype_b.add_method(mtb);")
             out.println()
                 
         out.println()
@@ -154,6 +155,8 @@ class GenSv(object):
             # Return passed as the first parameter
             out.println("%s retval;" % self._type2tblinkstr(m.rtype, qtype))
             out.println("%s rval;" % self._type2str(m.rtype))
+        else:
+            out.println("tblink_rpc::IParamVal rval;")
         out.println("%sIParamValVec params = m_ifinst.mkValVec();" % tpref)
         
         for i,p in enumerate(m.params):
@@ -164,7 +167,8 @@ class GenSv(object):
         if m.rtype is not None:
             out.write("retval = ")
         else:
-            out.write("void'(")
+#            out.write("void'(")
+            out.write("rval = ")
             
         out.write("%s.invoke_nb(\n" % prefix)
         out.inc_ind()
@@ -172,7 +176,8 @@ class GenSv(object):
         if m.rtype is not None:
             out.println("params);")
         else:
-            out.println("params));")
+#            out.println("params));")
+            out.println("params);")
         out.dec_ind()
                 
         # TODO: internals
