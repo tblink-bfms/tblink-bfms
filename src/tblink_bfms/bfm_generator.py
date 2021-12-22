@@ -10,7 +10,7 @@ import jinja2
 
 from tblink_bfms.generators.gen_rgy import GenRgy
 from tblink_bfms.template_loader import TemplateLoader
-from tblink_rpc.yaml_idl_parser import YamlIDLParser
+from tblink_rpc_utils.yaml_idl_parser import YamlIDLParser
 
 
 class BfmGenerator(object):

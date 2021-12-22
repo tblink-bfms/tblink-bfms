@@ -3,8 +3,8 @@ Created on Nov 12, 2021
 
 @author: mballance
 '''
-from tblink_rpc.gen_utils import GenUtils
-from tblink_rpc.output import Output
+from tblink_rpc_utils.gen_utils import GenUtils
+from tblink_rpc_utils.output import Output
 from tblink_bfms.generators.gen_sv import GenSv
 
 
@@ -224,18 +224,13 @@ class GenSvBfmImpl(object):
         out.println("longint id = method.id();")
         out.println()
         out.println("case (id)")
+
         for i,m in enumerate(iftype.methods):
-            
-            if not m.is_blocking and ((not is_mirror and m.is_export) or (is_mirror and not m.is_export)):
-                GenSv().gen_invoke_b_case(out, i, m, "")
-#                out.println("%d: begin // %s" % (i, m.name))
-#                out.inc_ind()
-#                out.dec_ind()
-#                out.println("end")
-#                out.println()
+            if not m.is_blocking and (is_mirror and not m.is_export or not is_mirror and m.is_export):
+                GenSv().gen_invoke_nb_case(out, i, m, "", qtype=True)
         out.println("default: begin")
         out.inc_ind()
-        out.println("$display(\"TbLink Error: %%m - unknown method id %%0d\", id);")
+        out.println("$display(\"TbLink Error: %m - unknown method id %0d\", id);")
         out.println("$stop;")
         out.dec_ind()
         out.println("end")
@@ -247,6 +242,42 @@ class GenSvBfmImpl(object):
         out.println("endfunction")
         out.println("export \"DPI-C\" function %s_core_invoke_nb;" % g_util.to_id(iftype.name))
         out.println()
+        
+        out.println("task automatic %s_core_invoke_b(" % (
+            g_util.to_id(iftype.name),))
+        out.inc_ind()
+        out.inc_ind()
+        out.println("output chandle retval_h,")
+        out.println("input chandle ifinst_h,")
+        out.println("input chandle method_h,")
+        out.println("input chandle params_h);")
+        out.dec_ind()
+        out.println("tblink_rpc::DpiInterfaceInst ifinst = new(ifinst_h);")
+        out.println("tblink_rpc::DpiMethodType method = new(method_h);")
+        out.println("tblink_rpc::DpiParamValVec params = new(params_h);")
+        out.println("tblink_rpc::IParamVal retval;")
+        out.println("longint id = method.id();")
+        out.println()
+        out.println("retval_h = null;")
+        out.println()
+        out.println("case (id)")
+        for i,m in enumerate(iftype.methods):
+            print("[%d] method: %s is_blocking=%d is_mirror=%d is_export=%d" % (
+                i, m.name, m.is_blocking, is_mirror, m.is_export))
+            if m.is_blocking and (is_mirror and not m.is_export or not is_mirror and m.is_export):
+                GenSv().gen_invoke_b_case(out, i, m, "", qtype=True)
+        out.println("default: begin")
+        out.inc_ind()
+        out.println("$display(\"TbLink Error: %m - unknown method id %0d\", id);")
+        out.println("$stop;")
+        out.dec_ind()
+        out.println("end")
+        out.println("endcase")
+
+        out.dec_ind()
+        out.println("endtask")
+        out.println("export \"DPI-C\" task %s_core_invoke_b;" % g_util.to_id(iftype.name))
+        out.println()        
 
         out.println("function automatic void init();")
         out.inc_ind()
@@ -274,7 +305,7 @@ class GenSvBfmImpl(object):
         out.inc_ind()
         out.println("m_inst_name,")
         out.println("string'(\"%s_core_invoke_nb\")," % g_util.to_id(iftype.name))
-        out.println("string'(\"%s_core_invoke_nb\"));" % g_util.to_id(iftype.name))
+        out.println("string'(\"%s_core_invoke_b\"));" % g_util.to_id(iftype.name))
 #        out.println("string'(\"def\"));")
         out.dec_ind()
         out.dec_ind()
@@ -305,6 +336,14 @@ class GenSvBfmImpl(object):
         out.dec_ind()
         out.dec_ind()
         
+        out.println()
+        out.println("// Lookup method handles")
+        for m in iftype.methods:
+            if m.is_export == is_mirror:
+                out.println("m_%s = iftype.findMethod(string'(\"%s\"));" % (
+                    m.name, m.name))
+        out.println()
+        
         out.dec_ind()
         out.println("endfunction")
        
@@ -312,6 +351,7 @@ class GenSvBfmImpl(object):
         out.inc_ind()
         out.println("m_inst_name = $sformatf(\"%m\");")
         out.println("init();")
+        out.println()
         out.println("tblink_rpc::tblink_rpc_start();")
         out.dec_ind()
         out.println("end")

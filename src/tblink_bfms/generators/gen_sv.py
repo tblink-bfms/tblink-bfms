@@ -3,8 +3,8 @@ Created on Nov 12, 2021
 
 @author: mballance
 '''
-from tblink_rpc.gen_utils import GenUtils
-from tblink_rpc.type_spec import TypeSpec, TypeKind
+from tblink_rpc_utils.gen_utils import GenUtils
+from tblink_rpc_utils.type_spec import TypeSpec, TypeKind
 
 
 class GenSv(object):
@@ -89,8 +89,14 @@ class GenSv(object):
                 else:
                     self.gen_method_t_impl_nb(out, m)
     
-    def gen_method_t_impl_b(self, out, m, prefix="m_ifinst", qtype=False, auto=False):
-        out.println("task %s(" % m.name)
+    def gen_method_t_impl_b(self, out, m, prefix="m_ifinst", qtype=False, is_auto=False):
+        
+        if qtype:
+            tpref = "tblink_rpc::"
+        else:
+            tpref = ""
+            
+        out.println("task automatic %s(" % m.name)
         out.inc_ind()
         out.inc_ind()
 
@@ -111,7 +117,34 @@ class GenSv(object):
             out.write("%s);\n" % out.ind)
 
         out.dec_ind()
+        
         # TODO: internals
+        out.println("%sIParamValVec params = m_ifinst.mkValVec();" % tpref)
+        out.println("%sIParamVal retval;" % tpref)
+        
+        for i,p in enumerate(m.params):
+            out.println("params.push_back(%s);" % self._mktblink_val(p[1], p[0], "m_ifinst"))
+
+        out.println("$display(\"m_ifinst=%%p\", %s);" % prefix)
+
+        out.write(out.ind)
+        if m.rtype is not None:
+            out.write("retval = ")
+        else:
+#            out.write("void'(")
+#            out.write("rval = ")
+            pass
+            
+        out.write("%s.invoke_b(\n" % prefix)
+        out.inc_ind()
+        out.println("retval,")
+        out.println("m_%s," % m.name)
+        if m.rtype is not None:
+            out.println("params);")
+        else:
+#            out.println("params));")
+            out.println("params);")
+        out.dec_ind()
         out.dec_ind()
         out.println("endtask")
         pass
@@ -162,6 +195,7 @@ class GenSv(object):
         for i,p in enumerate(m.params):
             out.println("params.push_back(%s);" % self._mktblink_val(p[1], p[0], "m_ifinst"))
 
+        out.println("$display(\"m_ifinst=%%p\", %s);" % prefix)
 
         out.write(out.ind)
         if m.rtype is not None:
@@ -319,7 +353,7 @@ class GenSv(object):
         pass
     
     
-    def gen_invoke_b_case(self, out, i, m, invoke_prefix):
+    def gen_invoke_b_case(self, out, i, m, invoke_prefix, qtype=False):
         out.println("%d: begin // %s" % (i, m.name))
         out.inc_ind()
         if m.rtype is not None:
@@ -327,7 +361,7 @@ class GenSv(object):
 
         for p in m.params:
             out.println("%s %s;" % (self._type2str(p[1]), p[0]))
-            out.println("%s %s_p;" % (self._type2tblinkstr(p[1]), p[0]))
+            out.println("%s %s_p;" % (self._type2tblinkstr(p[1], qtype), p[0]))
         for i,p in enumerate(m.params):
             out.println("$cast(%s_p, params.at(%d));" % (p[0], i))
             if p[1].kind == TypeKind.Int:
@@ -359,7 +393,7 @@ class GenSv(object):
         out.dec_ind()
         out.println("end")
         
-    def gen_invoke_nb_case(self, out, i, m, invoke_prefix):
+    def gen_invoke_nb_case(self, out, i, m, invoke_prefix, qtype=False):
         out.println("%d: begin // %s" % (i, m.name))
         out.inc_ind()
         if m.rtype is not None:
@@ -367,7 +401,7 @@ class GenSv(object):
 
         for p in m.params:
             out.println("%s %s;" % (self._type2str(p[1]), p[0]))
-            out.println("%s %s_p;" % (self._type2tblinkstr(p[1]), p[0]))
+            out.println("%s %s_p;" % (self._type2tblinkstr(p[1], qtype), p[0]))
         for i,p in enumerate(m.params):
             out.println("$cast(%s_p, params.at(%d));" % (p[0], i))
             if p[1].kind == TypeKind.Int:

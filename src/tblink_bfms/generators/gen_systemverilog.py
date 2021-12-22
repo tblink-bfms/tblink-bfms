@@ -8,8 +8,8 @@ from _io import StringIO
 from tblink_bfms.generators.gen_base import GenBase
 from tblink_bfms.generators.gen_sv import GenSv
 from tblink_bfms.generators.gen_sv_bfm_impl import GenSvBfmImpl
-from tblink_rpc.gen_utils import GenUtils
-from tblink_rpc.output import Output
+from tblink_rpc_utils.gen_utils import GenUtils
+from tblink_rpc_utils.output import Output
 
 
 class GenSystemVerilog(GenBase):
