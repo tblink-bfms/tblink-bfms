@@ -30,6 +30,7 @@ setup(
     'setuptools_scm',
   ],
   install_requires=[
+      'jinja2',
       'pyyaml',
       'pykwalify',
       'pyyaml-srcinfo-loader',

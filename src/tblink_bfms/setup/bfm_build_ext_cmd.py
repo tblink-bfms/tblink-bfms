@@ -7,7 +7,7 @@ import os
 
 import jinja2
 from setuptools.command.build_ext import build_ext
-from tblink_rpc.yaml_idl_parser import YamlIDLParser
+from tblink_rpc_utils.yaml_idl_parser import YamlIDLParser
 from distutils.extension import Extension
 import shutil
 from tblink_bfms.template_loader import TemplateLoader
@@ -23,6 +23,7 @@ class BfmBuildExtCmd(build_ext):
         bfm_extensions = []
         self.gen_i = None
         self.idl = None
+
         
         print("BfmBuildExtCmd")
         print("  build_lib=%s" % self.build_lib)
@@ -35,21 +36,24 @@ class BfmBuildExtCmd(build_ext):
                 self.extensions.pop(i)
             else:
                 i += 1
+
+        if os.path.isdir(self.build_lib):
+            # Process BFM extensions
+            pkg_dir = None
+            for f in os.listdir(self.build_lib):
+                if os.path.isdir(os.path.join(self.build_lib, f)):
+                    if os.path.isfile(os.path.join(self.build_lib, f, "__init__.py")):
+                        pkg_dir = os.path.join(self.build_lib, f)
+                        break
                 
-        # Process BFM extensions
-        pkg_dir = None
-        for f in os.listdir(self.build_lib):
-            if os.path.isdir(os.path.join(self.build_lib, f)):
-                if os.path.isfile(os.path.join(self.build_lib, f, "__init__.py")):
-                    pkg_dir = os.path.join(self.build_lib, f)
-                    break
-                
-        if pkg_dir is None:
-            raise Exception("Failed to find package in %s" % self.build_lib)
-        share_dir = os.path.join(pkg_dir, "share")
+            if pkg_dir is None:
+                raise Exception("Failed to find package in %s" % self.build_lib)
+            share_dir = os.path.join(pkg_dir, "share")
         
-        if not os.path.isdir(share_dir):
-            os.makedirs(share_dir)
+            if not os.path.isdir(share_dir):
+                os.makedirs(share_dir)
+        else: # Installing in 'dev' mode
+            share_dir = os.getcwd()
 
         self.env = jinja2.Environment(loader=TemplateLoader())
         
@@ -58,6 +62,7 @@ class BfmBuildExtCmd(build_ext):
 
         # Build any non-BFM extensions   
         build_ext.run(self)
+
         
     def build_bfm_ext(self, ext : Extension, share_dir):
         parser = YamlIDLParser()
@@ -86,7 +91,7 @@ class BfmBuildExtCmd(build_ext):
                 self.process_template(
                     os.path.join(src_dir, src_f),
                     dst_dir)
-            else:
+            elif src_dir != dst_dir:
                 # Just copy over
                 print("Copying file %s" % os.path.join(src_dir, src_f))
                 if not os.path.isdir(os.path.join(dst_dir)):
@@ -94,6 +99,8 @@ class BfmBuildExtCmd(build_ext):
                 shutil.copy(
                     os.path.join(src_dir, src_f),
                     os.path.join(dst_dir, src_f))
+            else:
+                print("src_dir==dst_dir")
                 
     def process_template(self, src_file, dst_dir):
         tmpl_e = self.get_template(src_file)
@@ -136,7 +143,7 @@ class BfmBuildExtCmd(build_ext):
             if iftype_i is None:
                 raise Exception("Failed to find interface type %s" % iftype)
             
-            return self.gen_i.tblink_gen(iftype_i, is_mirror, kind, *kwargs)
+            return self.gen_i.tblink_gen(iftype_i, is_mirror, kind, **kwargs)
         else:
             return ""
     
