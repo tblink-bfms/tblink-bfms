@@ -103,6 +103,7 @@ class GenVerilog(GenBase):
         out.println("ep,")
         out.println("\"%s\");" % iftype.name)
         out.dec_ind()
+        out.println("$display(\"iftype_b: 'h%08h\", iftype_b);")
 
         for i,m in enumerate(iftype.methods):
             out.println("mtb = $tblink_rpc_IInterfaceTypeBuilder_newMethodTypeBuilder(")
@@ -121,7 +122,7 @@ class GenVerilog(GenBase):
                     p[0]))
                 out.write("%s);\n" % g_util.gen_mk_type("iftype_b", p[1]))
         
-            out.println("method = $tblink_rpc_IInterfaceTypeBuilder_add_method(mtb);")
+            out.println("method = $tblink_rpc_IInterfaceTypeBuilder_add_method(iftype_b, mtb);")
             out.println()
                 
         out.println()
