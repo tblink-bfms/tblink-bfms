@@ -35,6 +35,7 @@ class BfmGenerator(object):
         pass
     
     def process_files(self, src_dir, dst_dir):
+        print("--> process_files", flush=True)
         for src_f in os.listdir(src_dir):
             if os.path.isdir(os.path.join(src_dir, src_f)):
                 if src_f not in (".", ".."):
@@ -43,7 +44,7 @@ class BfmGenerator(object):
                         os.path.join(dst_dir, src_f))
             elif src_f.endswith(".in"):
                 # Template file
-                print("Template file %s" % os.path.join(src_dir, src_f))
+                print("Template file %s" % os.path.join(src_dir, src_f), flush=True)
                 if not os.path.isdir(os.path.join(dst_dir)):
                     os.makedirs(os.path.join(dst_dir))
                 self.process_template(
@@ -51,12 +52,13 @@ class BfmGenerator(object):
                     dst_dir)
             else:
                 # Just copy over
-                print("Copying file %s" % os.path.join(src_dir, src_f))
+                print("Copying file %s" % os.path.join(src_dir, src_f), flush=True)
                 if not os.path.isdir(os.path.join(dst_dir)):
                     os.makedirs(os.path.join(dst_dir))
                 shutil.copy(
                     os.path.join(src_dir, src_f),
                     os.path.join(dst_dir, src_f))
+        print("<-- process_files", flush=True)
                 
     def process_template(self, src_file, dst_dir):
         tmpl_e = self.get_template(src_file)

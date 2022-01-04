@@ -25,12 +25,20 @@ class GenVerilog(GenBase):
         out.println()
         
         # TODO: generate functions
+
+        out.inc_ind()
+        for m in iftype.methods:
+            if not m.is_export and not is_mirror or m.is_export and is_mirror:
+                if m.is_blocking:
+                    self.gen_method_t_impl_b(out, m, "m_ifinst")
+                else:
+                    self.gen_method_t_impl_nb(out, m, "m_ifinst")
+        out.dec_ind()
         
         # generate define-type
         out.inc_ind()
         self.gen_define_type(out, iftype)
         out.dec_ind()
-        
         
         out.println("initial begin")
         out.inc_ind()
@@ -136,7 +144,155 @@ class GenVerilog(GenBase):
         out.println("end")
         out.println("endfunction")
         out.println()        
-    
+        
+    def gen_method_t_impl_b(self, out, m, prefix="m_ifinst", qtype=False, is_auto=False):
+        
+        if qtype:
+            tpref = "tblink_rpc::"
+        else:
+            tpref = ""
+            
+        out.println("task %s(" % m.name)
+        out.inc_ind()
+        out.inc_ind()
+
+        if m.rtype is not None:
+            # Return passed as the first parameter
+            out.write("%soutput %s rval" % (out.ind, self._type2str(m.rtype)))
+            
+        for i,p in enumerate(m.params):
+            if i > 0 or m.rtype is not None:
+                out.write(",\n%s" % out.ind)
+            out.write("%sinput " % out.ind)
+            self.gen_sv_typename(out, p[1])
+            out.write(" %s" % p[0])
+            
+        if len(m.params) > 0:
+            out.write(");\n")
+        else:
+            out.write("%s);\n" % out.ind)
+
+        out.dec_ind()
+        out.dec_ind()
+        out.println("begin")
+        out.inc_ind()
+        
+        # TODO: internals
+        out.println("%sIParamValVec params = m_ifinst.mkValVec();" % tpref)
+        out.println("%sIParamVal retval;" % tpref)
+        
+        for i,p in enumerate(m.params):
+            out.println("params.push_back(%s);" % self._mktblink_val(p[1], p[0], "m_ifinst"))
+
+        out.println("$display(\"m_ifinst=%%p\", %s);" % prefix)
+
+        out.write(out.ind)
+        if m.rtype is not None:
+            out.write("retval = ")
+        else:
+#            out.write("void'(")
+#            out.write("rval = ")
+            pass
+            
+        out.write("%s.invoke_b(\n" % prefix)
+        out.inc_ind()
+        out.println("retval,")
+        out.println("m_%s," % m.name)
+        if m.rtype is not None:
+            out.println("params);")
+        else:
+#            out.println("params));")
+            out.println("params);")
+        out.dec_ind()
+        out.dec_ind()
+        out.println("end")
+        out.println("endtask")
+
+    def gen_method_t_impl_nb(self, out, m, prefix="m_ifinst", qtype=False, is_auto=False):
+        
+        if qtype:
+            tpref = "tblink_rpc::"
+        else:
+            tpref = ""
+        if is_auto:
+            auto = "automatic "
+        else:
+            auto = ""
+            
+        if m.rtype is None:
+            # Older Verilog simulators don't like void functions. Use tasks instead
+            out.println("task %s(" % m.name)
+        else:
+            out.println("function %s %s(" % (self._type2str(m.rtype), m.name))
+
+        out.inc_ind()
+        out.inc_ind()
+            
+        for i,p in enumerate(m.params):
+            if i > 0 or m.rtype is not None:
+                out.write(",\n%s" % out.ind)
+            out.write("%sinput " % out.ind)
+            self.gen_sv_typename(out, p[1])
+            out.write(" %s" % p[0])
+            
+            
+        if len(m.params) > 0:
+            out.write(");\n")
+        else:
+            out.write("%s);\n" % out.ind)
+        out.dec_ind()
+
+        out.println("reg[63:0] params;")
+        out.println("reg[63:0] retval = 0;")
+        if m.rtype is not None:
+            out.println("%s rval;" % self._type2str(m.rtype))
+        out.dec_ind()
+        out.println("begin")
+        out.inc_ind()
+        
+        out.println("params = $tblink_rpc_IInterfaceInst_mkValVec(%s);" % prefix)
+        
+        # if m.rtype is not None:
+        #     # Return passed as the first parameter
+        #     out.println("%s retval;" % self._type2tblinkstr(m.rtype, qtype))
+        #     out.println("%s rval;" % self._type2str(m.rtype))
+        # else:
+        #     out.println("tblink_rpc::IParamVal rval;")
+        
+        for i,p in enumerate(m.params):
+            out.println("$tblink_rpc_IParamValVec_push_back(params, %s);" % self._mktblink_val(p[1], p[0], prefix))
+
+        out.println("$display(\"m_ifinst=%%p\", %s);" % prefix)
+
+        out.write(out.ind)
+        if m.rtype is not None:
+            out.write("retval = ")
+        else:
+#            out.write("void'(")
+            out.write("rval = ")
+            
+        out.write("$tblink_rpc_IInterfaceInst_invoke_nb(\n" % prefix)
+        out.inc_ind()
+        out.println("m_%s," % m.name)
+        if m.rtype is not None:
+            out.println("params);")
+        else:
+#            out.println("params));")
+            out.println("params);")
+        out.dec_ind()
+                
+        # TODO: internals
+        
+        if m.rtype is not None:
+            out.println("return rval;")
+        out.dec_ind()
+
+        out.println("end")        
+        if m.rtype is None:
+            out.println("endtask")
+        else:
+            out.println("endfunction")
+
     def tblink_gen(self, iftype, is_mirror, kind=None, **kwargs):
         ret_s = StringIO()
         out = Output(ret_s)
