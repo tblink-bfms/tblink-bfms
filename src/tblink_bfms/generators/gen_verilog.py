@@ -52,6 +52,18 @@ class GenVerilog(GenBase):
         out.println("end")
         out.println()
         out.println("m_iftype = define_type(m_ep);")
+        out.println()
+        
+        out.println("// Create interface instance")
+        out.println("m_ifinst = $tblink_rpc_IEndpoint_defineInterfaceInst(")
+        out.inc_ind()
+        out.inc_ind()
+        out.println("m_iftype,")
+        out.println("\"\",")
+        out.println("0,")
+        out.println("m_ev);")
+        out.dec_ind()
+        out.dec_ind()
         
         out.println()
         out.println("// TODO: method-lookup")
@@ -221,35 +233,38 @@ class GenVerilog(GenBase):
             
         if m.rtype is None:
             # Older Verilog simulators don't like void functions. Use tasks instead
-            out.println("task %s(" % m.name)
+            out.write("%stask %s" % (out.ind, m.name))
         else:
-            out.println("function %s %s(" % (self._type2str(m.rtype), m.name))
+            out.write("%sfunction %s %s" % (out.ind, self._type2str(m.rtype), m.name))
+
 
         out.inc_ind()
-        out.inc_ind()
+        if len(m.params) == 0:
+            out.write(";\n")
+        else:                        
+            out.inc_ind()
+            out.write("(\n")
+            for i,p in enumerate(m.params):
+                if i > 0 or m.rtype is not None:
+                    out.write(",\n%s" % out.ind)
+                out.write("%sinput " % out.ind)
+                self.gen_sv_typename(out, p[1])
+                out.write(" %s" % p[0])
             
-        for i,p in enumerate(m.params):
-            if i > 0 or m.rtype is not None:
-                out.write(",\n%s" % out.ind)
-            out.write("%sinput " % out.ind)
-            self.gen_sv_typename(out, p[1])
-            out.write(" %s" % p[0])
-            
-            
-        if len(m.params) > 0:
-            out.write(");\n")
-        else:
-            out.write("%s);\n" % out.ind)
-        out.dec_ind()
+            if len(m.params) > 0:
+                out.write(");\n")
+            else:
+                out.write("%s);\n" % out.ind)
+            out.dec_ind()
 
         out.println("reg[63:0] params;")
-        out.println("reg[63:0] retval = 0;")
-        if m.rtype is not None:
-            out.println("%s rval;" % self._type2str(m.rtype))
+        out.println("reg[63:0] retval;")
+        out.println("reg[63:0] rval;")
         out.dec_ind()
         out.println("begin")
         out.inc_ind()
         
+        out.println("retval = 0;")
         out.println("params = $tblink_rpc_IInterfaceInst_mkValVec(%s);" % prefix)
         
         # if m.rtype is not None:
@@ -271,8 +286,9 @@ class GenVerilog(GenBase):
 #            out.write("void'(")
             out.write("rval = ")
             
-        out.write("$tblink_rpc_IInterfaceInst_invoke_nb(\n" % prefix)
+        out.write("$tblink_rpc_IInterfaceInst_invoke_nb(\n")
         out.inc_ind()
+        out.println("%s," % prefix)
         out.println("m_%s," % m.name)
         if m.rtype is not None:
             out.println("params);")
