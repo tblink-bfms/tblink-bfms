@@ -39,7 +39,8 @@ class GenVerilog(GenBase):
         out.inc_ind()
         self.gen_define_type(out, iftype)
         out.dec_ind()
-        
+
+        out.inc_ind()
         out.println("initial begin")
         out.inc_ind()
         out.println("m_ep = $tblink_rpc_ITbLink_get_default_ep;")
@@ -70,10 +71,29 @@ class GenVerilog(GenBase):
         out.println("// TODO: method-lookup")
         out.println()
         out.println("// TODO: event-processing loop")
+        out.println("while (1) begin : invoke_loop")
+        out.inc_ind()
+        out.println("reg[31:0] id;")
+        out.println()
+        out.println("case (m_id)")
+        out.println("32'hFFFF_FFFF: begin")
+        out.inc_ind()
+        out.println("@(m_ev);")
         out.dec_ind()
         out.println("end")
-        pass
-    
+        out.println("default: begin")
+        out.inc_ind()
+        out.println("$display(\"TbLink Error: %m unknown call-id %0d\", m_id);")
+        out.println("$finish;")
+        out.println("@(m_ev);")
+        out.dec_ind()
+        out.println("end")
+        out.println("endcase")
+        out.dec_ind()
+        out.println("end")
+        out.dec_ind()
+        out.println("end")
+
     def gen_fields(self, out, iftype, is_mirror):
         # TODO: generate fields
         # - event
@@ -92,6 +112,7 @@ class GenVerilog(GenBase):
         out.println("`endif")
         
         out.inc_ind()
+        out.println("reg[31:0]    m_id     = 0;")
         out.println("reg[63:0]    m_ep     = 0;")
         out.println("reg[63:0]    m_iftype = 0;")
         out.println("reg[63:0]    m_ifinst = 0;")
@@ -266,7 +287,7 @@ class GenVerilog(GenBase):
         out.inc_ind()
         
         out.println("retval = 0;")
-        out.println("params = $tblink_rpc_IInterfaceInst_mkValVec(%s);" % prefix)
+        out.println("params = $tblink_rpc_InterfaceInstWrapper_mkValVec(%s);" % prefix)
         
         # if m.rtype is not None:
         #     # Return passed as the first parameter
@@ -287,7 +308,7 @@ class GenVerilog(GenBase):
 #            out.write("void'(")
             out.write("rval = ")
             
-        out.write("$tblink_rpc_IInterfaceInst_invoke_nb(\n")
+        out.write("$tblink_rpc_InterfaceInstWrapper_invoke_nb(\n")
         out.inc_ind()
         out.println("%s," % prefix)
         out.println("m_%s," % m.name)
