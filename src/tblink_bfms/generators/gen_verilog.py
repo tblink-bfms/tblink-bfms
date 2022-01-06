@@ -58,6 +58,7 @@ class GenVerilog(GenBase):
         out.println("m_ifinst = $tblink_rpc_IEndpoint_defineInterfaceInst(")
         out.inc_ind()
         out.inc_ind()
+        out.println("m_ep,")
         out.println("m_iftype,")
         out.println("\"\",")
         out.println("0,")
