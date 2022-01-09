@@ -24,10 +24,12 @@ class BfmBuildExtCmd(build_ext):
         self.gen_i = None
         self.idl = None
 
-        
-        print("BfmBuildExtCmd")
-        print("  build_lib=%s" % self.build_lib)
-        print("  package=%s" % self.package)
+        self.debug = False
+
+        if self.debug:        
+            print("BfmBuildExtCmd")
+            print("  build_lib=%s" % self.build_lib)
+            print("  package=%s" % self.package)
        
         i=0
         while i < len(self.extensions):
@@ -85,7 +87,8 @@ class BfmBuildExtCmd(build_ext):
                         os.path.join(dst_dir, src_f))
             elif src_f.endswith(".in"):
                 # Template file
-                print("Template file %s" % os.path.join(src_dir, src_f))
+                if self.debug:        
+                    print("Template file %s" % os.path.join(src_dir, src_f))
                 if not os.path.isdir(os.path.join(dst_dir)):
                     os.makedirs(os.path.join(dst_dir))
                 self.process_template(
@@ -93,14 +96,16 @@ class BfmBuildExtCmd(build_ext):
                     dst_dir)
             elif src_dir != dst_dir:
                 # Just copy over
-                print("Copying file %s" % os.path.join(src_dir, src_f))
+                if self.debug:        
+                    print("Copying file %s" % os.path.join(src_dir, src_f))
                 if not os.path.isdir(os.path.join(dst_dir)):
                     os.makedirs(os.path.join(dst_dir))
                 shutil.copy(
                     os.path.join(src_dir, src_f),
                     os.path.join(dst_dir, src_f))
             else:
-                print("src_dir==dst_dir")
+                if self.debug:        
+                    print("src_dir==dst_dir")
                 
     def process_template(self, src_file, dst_dir):
         tmpl_e = self.get_template(src_file)
@@ -112,7 +117,8 @@ class BfmBuildExtCmd(build_ext):
             raise Exception("tblink_generators is not a dict")
         
         for file,gen in tmpl_e.module.tblink_generators.items():
-            print("Generate for %s:%s" % (file, gen))
+            if self.debug:        
+                print("Generate for %s:%s" % (file, gen))
             dst_file = os.path.join(dst_dir, file)
             gen_t = GenRgy.inst().find_gen(gen)
             
@@ -136,7 +142,8 @@ class BfmBuildExtCmd(build_ext):
     
     def gen_tblink_gen(self, iftype, is_mirror, kind=None, **kwargs):
         if self.gen_i is not None:
-            print("iftype=%s is_mirror=%s" % (iftype, str(is_mirror)))
+            if self.debug:        
+                print("iftype=%s is_mirror=%s" % (iftype, str(is_mirror)))
 
             iftype_i = self.idl.find_iftype(iftype)
 
