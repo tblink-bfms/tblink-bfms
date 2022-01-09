@@ -224,26 +224,30 @@ class GenVerilog(GenBase):
             tpref = "tblink_rpc::"
         else:
             tpref = ""
-            
-        out.println("task %s(" % m.name)
-        out.inc_ind()
-        out.inc_ind()
 
-        if m.rtype is not None:
-            # Return passed as the first parameter
-            out.write("%soutput %s rval" % (out.ind, self._type2str(m.rtype)))
-            
-        for i,p in enumerate(m.params):
-            if i > 0 or m.rtype is not None:
-                out.write(",\n%s" % out.ind)
-            out.write("%sinput " % out.ind)
-            self.gen_sv_typename(out, p[1])
-            out.write(" %s" % p[0])
-            
-        if len(m.params) > 0:
-            out.write(");\n")
+        if len(m.params) == 0 and m.rtype is None:
+            out.println("task %s;" % m.name)
         else:
-            out.write("%s);\n" % out.ind)
+            out.println("task %s(" % m.name)
+            out.inc_ind()
+            out.inc_ind()
+
+            if m.rtype is not None:
+                # Return passed as the first parameter
+                out.write("%soutput %s rval" % (out.ind, self._type2str(m.rtype)))
+            
+            for i,p in enumerate(m.params):
+                if i > 0 or m.rtype is not None:
+                    out.write(",\n%s" % out.ind)
+                out.write("%sinput %s %s" % (
+                    out.ind,
+                    out._type2str(p[1]),
+                    p[0]))
+
+            if len(m.params) > 0:
+                out.write(");\n")
+            else:
+                out.write("%s);\n" % out.ind)
 
         out.dec_ind()
         out.dec_ind()
@@ -255,7 +259,8 @@ class GenVerilog(GenBase):
         out.println("%sIParamVal retval;" % tpref)
         
         for i,p in enumerate(m.params):
-            out.println("params.push_back(%s);" % self._mktblink_val(p[1], p[0], "m_ifinst"))
+            out.println("pvalue = %s;" % self._mktblink_val(p[1], p[0], "m_ifinst"))
+            out.println("params.push_back(pvalue);")
 
         out.println("$display(\"m_ifinst=%%p\", %s);" % prefix)
 
@@ -308,9 +313,10 @@ class GenVerilog(GenBase):
             for i,p in enumerate(m.params):
                 if i > 0 or m.rtype is not None:
                     out.write(",\n%s" % out.ind)
-                out.write("%sinput " % out.ind)
-                self.gen_sv_typename(out, p[1])
-                out.write(" %s" % p[0])
+                out.write("%sinput %s %s" % (
+                    out.ind,
+                    self._type2str(p[1]),
+                    p[0]))
             
             if len(m.params) > 0:
                 out.write(");\n")
@@ -318,6 +324,7 @@ class GenVerilog(GenBase):
                 out.write("%s);\n" % out.ind)
             out.dec_ind()
 
+        out.println("reg[63:0] pvalue;")
         out.println("reg[63:0] params;")
         out.println("reg[63:0] retval;")
         out.println("reg[63:0] rval;")
@@ -336,7 +343,8 @@ class GenVerilog(GenBase):
         #     out.println("tblink_rpc::IParamVal rval;")
         
         for i,p in enumerate(m.params):
-            out.println("$tblink_rpc_IParamValVec_push_back(params, %s);" % self._mktblink_val(p[1], p[0], prefix))
+            out.println("pvalue = %s;" % self._mktblink_val(p[1], p[0], "m_ifinst"))
+            out.println("$tblink_rpc_IParamValVec_push_back(params, pvalue);")
 
         out.println("$display(\"m_ifinst=%%p\", %s);" % prefix)
 
@@ -436,6 +444,23 @@ class GenVerilog(GenBase):
         out.dec_ind()
         out.println("end")
         pass
+    
+    def _mktblink_val(self, type_s : TypeSpec, name, ifinst):
+        ret = ""
+        
+        if type_s.kind == TypeKind.Int:
+            if type_s.is_signed:
+                ret += "$tblink_rpc_InterfaceInstWrapper_mkValIntS(%s, %s, %d)" % (ifinst, name, type_s.width)
+            else:
+                ret += "$tblink_rpc_InterfaceInstWrapper_mkValIntU(%s, %s, %d)" % (ifinst, name, type_s.width)
+        elif type_s.kind == TypeKind.Bool:
+            ret += "$tblink_rpc_InterfaceInstWrapper_mkValBool(%s, %s)" % (ifinst, name)
+        elif type_s.kind == TypeKind.Str:
+            ret += "$tblink_rpc_InterfaceInstWrapper_mkValStr(%s, %s)" % (ifinst, name)
+        else:
+            raise Exception("Unhandled type: %s" % str(type_s))
+        
+        return ret    
     
     _int_type_u_m = {
         8: 'reg[7:0]',
