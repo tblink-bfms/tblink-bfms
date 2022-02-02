@@ -284,7 +284,7 @@ class GenSvBfmImpl(object):
         out.println("tblink_rpc::TbLink tblink = tblink_rpc::tblink();");
         out.println("tblink_rpc::IEndpoint ep;")
         out.println("tblink_rpc::IInterfaceType iftype;")
-        out.println("tblink_rpc::DpiInterfaceImpl ifimpl;")
+        out.println("tblink_rpc::DpiBfmInterfaceImpl ifimpl;")
         out.println("int ret;")
         out.println()
         out.println("$display(\"init for %0s\", m_inst_name);")

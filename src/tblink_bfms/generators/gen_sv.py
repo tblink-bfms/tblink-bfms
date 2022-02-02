@@ -55,7 +55,7 @@ class GenSv(object):
             out.println()
                 
         out.println()
-        out.println("iftype = ep.defineInterfaceType(iftype_b);")
+        out.println("iftype = ep.defineInterfaceType(iftype_b, null, null);")
 
         out.dec_ind()
         out.println("end")
