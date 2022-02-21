@@ -241,7 +241,7 @@ class GenVerilog(GenBase):
                     out.write(",\n%s" % out.ind)
                 out.write("%sinput %s %s" % (
                     out.ind,
-                    out._type2str(p[1]),
+                    self._type2str(p[1]),
                     p[0]))
 
             if len(m.params) > 0:
