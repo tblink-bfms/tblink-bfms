@@ -6,6 +6,7 @@ Created on Oct 29, 2021
 from tblink_bfms.generators.gen_base import GenBase
 from tblink_bfms.generators.gen_systemverilog import GenSystemVerilog
 from tblink_bfms.generators.gen_verilog import GenVerilog
+from tblink_bfms.generators.gen_verilog_syn import GenVerilogSyn
 
 
 class GenRgy(object):
@@ -17,7 +18,7 @@ class GenRgy(object):
         
         self.gen_m["tblink.bfm_impl.sv"] = GenSystemVerilog
         self.gen_m["tblink.bfm_impl.vl"] = GenVerilog
-        pass
+        self.gen_m["tblink.bfm_impl.vl-syn"] = GenVerilogSyn
     
     def find_gen(self, gen_t):
         if gen_t in self.gen_m.keys():
